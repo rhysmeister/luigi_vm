@@ -1,0 +1,57 @@
+---
+- hosts: all
+  gather_facts: yes
+  become: yes
+  vars:
+    luigi_version: 2.7.9
+
+  tasks:
+
+  - name: Ensure the epel repo is available
+    yum:
+      name: epel-release
+      state: present
+
+  - name: Ensure pip is installed
+    yum:
+      name: python-pip
+      state: present
+
+  - name: Upgrade setuptools
+    yum:
+      name: python-setuptools
+      state: latest
+
+  - name: Install luigi via pip
+    pip:
+      name: luigi
+      state: present
+      version: "{{ luigi_version }}"
+
+  - name: Ensure luigi group exists
+    group:
+      name: luigi
+
+  - name: Ensure luigi user exists
+    user:
+      name: luigi
+      group: luigi
+
+  - name: Ensure luigi directories exists
+    file:
+      path: "{{ item }}"
+      state: directory
+      owner: luigi
+      group: luigi
+    with_items:
+      - /var/log/luigi/
+      - /var/run/luigi/
+      - /home/luigi/
+
+  - name: Set luigi to run at boot
+    cron:
+      job: luigid --background --pidfile /var/run/luigi/luigi.pid --logdir /var/log/luigi/ --state-path /home/luigi/luigi.state
+      special_time: reboot
+
+  - name: Reboot host
+    reboot:
